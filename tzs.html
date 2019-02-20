@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>贪吃蛇</title>
+	<style>
+		.Sut{
+			border-radius: 5px;
+			padding: 3px 9px;
+			-webkit-transition:background-color 0.8s;
+		}
+
+		.Restart{
+			background-color: #fcaeae;
+			border: solid 1.5px #0a5f6344;
+		}
+
+		.Restart:hover{
+			background-color: #fc7878;
+		}
+
+		.Start{
+			background-color: #8abe79;
+			border: solid 1.5px #0b8c1b44;
+		}
+
+		.Start:hover{
+			background-color: #d1e142;
+		}
+		
+		.Nubmers{
+			background-color: #95a092;
+			border: solid 1.5px #a1bfb6;
+		}
+
+		.Nubmers:hover{
+			background-color: #bdd1b7;
+		}
+
+		.Dates{
+			background-color: #b4ba73;
+			border: solid 1.5px #84afa0;
+		}
+
+		.Dates:hover{
+			background-color: #e1ec6d;
+		}
+	</style>
+
+</head>
+<body>
+	<div style="width: 500px;margin:0 auto"> -- 
+		<button onclick="Start()" id="Start" class="Start Sut">开始</button> -- 
+		<button onclick="Restart()" class="Restart Sut">重新开始</button> -- 
+		得分：<span id="nubmers" class="Nubmers Sut">0</span> -- 
+		计时：<span id="dates" class="Dates Sut">00：00</span>
+	</div>
+</body>
+</html>
+<script>
+
+	/*
+		全局变量
+	*/
+	
+	//地图
+	var map;
+	//食物
+	var food;
+	//蛇
+	var snake;
+	//开始按钮
+	var start;
+	//数量
+	var dates;
+	//计时
+	var min;
+	//开始按钮的状态，1为开始，2为暂停
+	var rpqn = 1;
+
+	//地图
+	function Map(){
+		this.width = 800;
+		this.height = 400;
+		this.top = 50;
+		this.left = 350;
+		this.color = "#ccc";
+		this.position = "absolute";
+		this._map = null;
+
+		this.show = function(){
+			this._map = document.createElement('div');
+			this._map.style.height = this.height+'px';
+			this._map.style.width = this.width+'px';
+			this._map.style.top = this.top+'px';
+			this._map.style.left = this.left+'px';
+			this._map.style.backgroundColor = this.color;
+			this._map.style.position = this.position;
+			document.getElementsByTagName("body")[0].appendChild(this._map);
+		}
+
+	}
+
+	//食物
+	function Food(){
+		this.width = 20;
+		this.height = 20;
+		this.border_redius = 10;
+		this.color = 'green';
+		this.position = 'absolute';
+		this.x = 0;
+		this.y = 0;
+		this._food = null;
+		this.show = function() {
+			//	判断食物是否创建
+			if(this._food == null){
+			this._food = document.createElement('div');
+			this._food.style.height = this.height+'px';
+			this._food.style.width = this.width+'px';
+			this._food.style.borderRadius=this.border_redius+'px';
+			this._food.style.backgroundColor = this.color;
+			this._food.style.position = this.position;
+
+			map._map.appendChild(this._food);
+			}
+			//	创建完成的食物，渲染位置
+			this.x = Math.floor(Math.random()*40);
+			this.y = Math.floor(Math.random()*20);
+			this._food.style.left = this.x*20+'px';
+			this._food.style.top = this.y*20+'px';
+		}
+	}
+
+	//蛇
+	function Snake(){
+		this.width = 20;
+		this.height = 20;
+		this.direct = 'right';
+		this.directs = 37;
+		this.nubmers = 0;
+		this.position = 'absolute';
+		this.body = [[2,1,'red',null],[1,1,'blue',null],[0,1,'blue',null]];
+		this.nubmer = document.getElementById("nubmers");
+
+		this.show = function() {
+			//	蛇长度
+			var length = this.body.length;
+			//	渲染蛇身
+			for(var i=0;i<length;i++){
+				//	判断蛇的身体是否创建
+				if(this.body[i][3] == null){
+				this.body[i][3] = document.createElement('div');
+				this.body[i][3].style.width = this.width+'px';
+				this.body[i][3].style.height = this.height+'px';
+				this.body[i][3].style.backgroundColor = this.body[i][2];
+				this.body[i][3].style.position = this.position;
+				this.body[i][3].style.left = this.body[i][0]*20+'px';
+				this.body[i][3].style.top = this.body[i][1]*20+'px';
+
+				map._map.appendChild(this.body[i][3]);
+				}
+				//	创建完成的蛇，渲染位置
+				this.body[i][3].style.left = this.body[i][0]*20+'px';
+				this.body[i][3].style.top = this.body[i][1]*20+'px';
+			}
+		}
+		
+		//	利用方向键控制方向
+		this.setDirect = function(code) {
+			//	禁止反向运动
+			if(this.directs != code){
+				switch(code){
+					case 37:
+						this.direct = "left";
+						this.directs = 39;
+					break;				
+					case 38:
+						this.direct = "up";
+						this.directs = 40;
+					break;				
+					case 39:
+						this.direct = "right";
+						this.directs = 37;
+					break;				
+					case 40:
+						this.direct = "down";
+						this.directs = 38;
+					break;
+				}
+			}
+		}
+
+		//	控制蛇移动
+		this.move = function() {
+			//	判断是否吃到食物
+			if(this.body[0][0]==food.x&&this.body[0][1]==food.y){
+				//	吃到蛇身加长一截
+				this.body.push([0,0,'blue',null]);
+				//	更新食物的位置
+				food.show();
+				//	吃到食物的数量+1
+				this.nubmers++;
+				this.nubmer.innerHTML= this.nubmers;
+			}
+
+			//	蛇身长度
+			var length = this.body.length;
+			//	更新蛇身长度
+			for(var i=length-1;i>0;i--) {
+				this.body[i][0] = this.body[i-1][0];
+				this.body[i][1] = this.body[i-1][1];
+			}
+			//	更新蛇身方向
+			if(this.direct == 'right'){
+				this.body[0][0] +=1;
+			}
+			if(this.direct == 'left'){
+				this.body[0][0] -=1;
+			}
+			if(this.direct == 'up'){
+				this.body[0][1] -=1;
+			}
+			if(this.direct == 'down'){
+				this.body[0][1] +=1;
+			}
+			//	重新渲染蛇身
+			this.show();
+			//	撞墙判断
+			if(this.body[0][0] < 0 || this.body[0][0] > 39 || this.body[0][1] < 0 || this.body[0][1] > 19){
+				alert("撞墙了");
+				clearInterval(start);
+				history.go(0);
+			}
+			//	吃到自己判断
+			for(var x=1;x<length;x++){
+				if((this.body[0][0] == this.body[x][0]) && (this.body[0][1] == this.body[x][1])){
+					alert("撞到自己了");
+					clearInterval(start);
+					history.go(0);
+				}
+			}
+		}
+	}
+
+	//计时
+	function Min(){
+		// 分和秒
+		this.times = [0,0];
+		//每秒要加+1的数
+		this.nubmers = 0;
+		this.ms = function(){
+			//	秒数到60，分钟+1
+			if(this.times[1]>58){
+				this.times[0]+=1;
+				this.nubmers=0;
+			}
+			this.nubmers += 1;
+			this.times[1]='0'+this.nubmers;
+			if(this.times[1]>9){
+				this.times[1]=this.nubmers;
+			}
+			this.dates = document.getElementById("dates");
+			//	重新渲染时间
+			this.dates.innerHTML = "0"+this.times[0]+" : "+this.times[1];
+			if(this.times[0]>9){
+			this.dates.innerHTML = this.times[0]+" : "+this.times[1];
+			}
+	}
+	}
+
+	//开始
+	function Start(){
+		this.spans = document.getElementById("Start");
+		//	点击后开始按键变为暂停，反之开始。
+		if(rpqn == 1){
+			start = setInterval('snake.move()',200);
+			dates = setInterval('min.ms()',1000);
+			rpqn = 2;
+			this.spans.innerHTML="暂停";
+		}else{
+			clearInterval(start);
+			clearInterval(dates);
+			rpqn = 1;
+			this.spans.innerHTML="开始";
+		}
+	}
+
+	//重新开始
+	function Restart(){
+		clearInterval(start);
+		history.go(0);
+	}
+
+	//页面加载后，执行
+	window.onload = function() {
+		//	地图
+		map = new Map();
+		map.show();
+		//	食物
+		food = new Food();
+		food.show();
+		//	蛇
+		snake = new Snake();
+		snake.show();
+		//	时间
+		min = new Min();
+		//	键盘事件
+		document.onkeydown = function() {
+			var code;
+			if(window.event) {
+				code = window.event.keyCode;
+			}else{
+				code = event.keyCode;
+			}
+			//	将值传给蛇的方法
+			snake.setDirect(code);
+		}
+	}
+</script>
